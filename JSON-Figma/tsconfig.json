@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "esnext",
+    "allowJs": true,
+    "strict": true,
+    "lib": ["es6"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./node_modules/@figma"
+    ],
+    "outDir": "dist",
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*", "src/**/*.js"],
+  "exclude": ["dist"]
+}

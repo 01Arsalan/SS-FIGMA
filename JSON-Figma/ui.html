@@ -1,0 +1,31 @@
+<h3>Import JSON to Figma</h3>
+<input type="file" id="jsonFile" accept=".json">
+<button id="importBtn">Import</button>
+<p id="status"></p>
+
+<script>
+    document.getElementById('importBtn').addEventListener('click', () => {
+        const fileInput = document.getElementById('jsonFile');
+        const statusText = document.getElementById('status');
+
+        if (fileInput.files.length === 0) {
+            statusText.textContent = "Please select a JSON file.";
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function(event) {
+            try {
+                const jsonData = JSON.parse(event.target.result);
+                parent.postMessage({ pluginMessage: { type: "import-json", data: jsonData } }, '*');
+                statusText.textContent = "JSON sent to Figma!";
+            } catch (error) {
+                statusText.textContent = "Invalid JSON format.";
+            }
+        };
+
+        reader.readAsText(file);
+    });
+</script>
