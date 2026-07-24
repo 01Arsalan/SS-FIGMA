@@ -2,13 +2,23 @@ import json
 import os
 import time
 import shutil
+import logging
+from typing import Optional
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.remote.webdriver import WebDriver
+
+logger = logging.getLogger(__name__)
+
+IGNORED_TAGS = {"script", "style", "noscript", "link", "meta", "br", "hr", "wbr"}
 
 
-def resolve_chromedriver():
+def resolve_chromedriver() -> str:
+    """Locate the ChromeDriver binary via env var, PATH, or common paths."""
     env_path = os.environ.get("CHROMEDRIVER_PATH")
     if env_path and os.path.exists(env_path):
         return env_path
@@ -31,21 +41,20 @@ def resolve_chromedriver():
     return "chromedriver"
 
 
-def get_bounding_rect(driver, element):
+def get_bounding_rect(driver: WebDriver, element: WebElement) -> dict:
+    """Get the element's bounding client rect via JS."""
     return driver.execute_script("""
         const rect = arguments[0].getBoundingClientRect();
         return {
-            left: rect.left,
-            top: rect.top,
-            width: rect.width,
-            height: rect.height,
-            right: rect.right,
-            bottom: rect.bottom
+            left: rect.left, top: rect.top,
+            width: rect.width, height: rect.height,
+            right: rect.right, bottom: rect.bottom
         };
     """, element)
 
 
-def get_absolute_position(driver, element):
+def get_absolute_position(driver: WebDriver, element: WebElement) -> dict:
+    """Compute absolute document position by walking offsetParent chain."""
     return driver.execute_script("""
         let elem = arguments[0];
         let x = 0, y = 0;
@@ -58,7 +67,8 @@ def get_absolute_position(driver, element):
     """, element)
 
 
-def get_computed_styles(driver, element):
+def get_computed_styles(driver: WebDriver, element: WebElement) -> dict:
+    """Extract 40+ computed CSS properties via window.getComputedStyle."""
     return driver.execute_script("""
         const s = window.getComputedStyle(arguments[0]);
         return {
@@ -124,7 +134,8 @@ def get_computed_styles(driver, element):
     """, element)
 
 
-def get_element_attributes(driver, element):
+def get_element_attributes(driver: WebDriver, element: WebElement) -> dict:
+    """Serialize all HTML attributes of an element to a dict."""
     return driver.execute_script("""
         const attrs = arguments[0].attributes;
         const result = {};
@@ -135,7 +146,8 @@ def get_element_attributes(driver, element):
     """, element)
 
 
-def get_direct_text(driver, element):
+def get_direct_text(driver: WebDriver, element: WebElement) -> str:
+    """Extract only direct text nodes (skip child element text)."""
     return driver.execute_script("""
         return Array.from(arguments[0].childNodes)
             .filter(node => node.nodeType === Node.TEXT_NODE)
@@ -144,10 +156,8 @@ def get_direct_text(driver, element):
     """, element)
 
 
-IGNORED_TAGS = {"script", "style", "noscript", "link", "meta", "br", "hr", "wbr"}
-
-
-def is_element_visible(element_data):
+def is_element_visible(element_data: dict) -> bool:
+    """Check if an element is visible (not hidden, zero-size, or transparent)."""
     cs = element_data["computed_styles"]
     br = element_data["bounding_rect"]
 
@@ -166,55 +176,63 @@ def is_element_visible(element_data):
     return True
 
 
-def get_element_info(driver, element):
-    tag_name = element.tag_name
-    attributes = get_element_attributes(driver, element)
-    bounding_rect = get_bounding_rect(driver, element)
-    absolute_position = get_absolute_position(driver, element)
-    computed_styles = get_computed_styles(driver, element)
-    direct_text = get_direct_text(driver, element).strip()
-
+def get_element_info(driver: WebDriver, element: WebElement) -> dict:
+    """Collect all structured data for a single DOM element."""
     return {
-        "tag": tag_name,
-        "attributes": attributes,
-        "bounding_rect": bounding_rect,
-        "absolute_position": absolute_position,
-        "computed_styles": computed_styles,
-        "content": direct_text,
-        "children": []
+        "tag": element.tag_name,
+        "attributes": get_element_attributes(driver, element),
+        "bounding_rect": get_bounding_rect(driver, element),
+        "absolute_position": get_absolute_position(driver, element),
+        "computed_styles": get_computed_styles(driver, element),
+        "content": get_direct_text(driver, element).strip(),
+        "children": [],
     }
 
 
-def extract_html_data(source, chromedriver_path=None, window_size=(1440, 900), headless=True):
+def extract_html_data(
+    source: str,
+    chromedriver_path: Optional[str] = None,
+    window_size: tuple = (1440, 900),
+    headless: bool = True,
+) -> list:
+    """
+    Render a URL or HTML file in Chrome and extract structured element data.
+
+    Args:
+        source: URL or local HTML file path.
+        chromedriver_path: Optional explicit path to ChromeDriver.
+        window_size: Browser viewport dimensions.
+        headless: Run in headless mode.
+
+    Returns:
+        List of element dicts with tag, attributes, bounding rect, styles, and children.
+    """
     if chromedriver_path is None:
         chromedriver_path = resolve_chromedriver()
 
     options = Options()
     if headless:
-        options.add_argument('--headless=new')
-    options.add_argument(f'--window-size={window_size[0]},{window_size[1]}')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-web-security')
-    options.add_argument('--allow-running-insecure-content')
-    options.add_argument('--hide-scrollbars')
+        options.add_argument("--headless=new")
+    options.add_argument(f"--window-size={window_size[0]},{window_size[1]}")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-web-security")
+    options.add_argument("--allow-running-insecure-content")
+    options.add_argument("--hide-scrollbars")
 
     service = Service(chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
         if os.path.exists(source):
-            file_url = f"file://{os.path.abspath(source)}"
-            driver.get(file_url)
+            driver.get(f"file://{os.path.abspath(source)}")
         else:
             driver.get(source)
 
         time.sleep(3)
 
-        last_top = driver.execute_script(
-            "return document.body.getBoundingClientRect().top"
-        )
+        last_top = driver.execute_script("return document.body.getBoundingClientRect().top")
         max_attempts = 5
         attempts = 0
         scroll_step = 500
@@ -222,9 +240,7 @@ def extract_html_data(source, chromedriver_path=None, window_size=(1440, 900), h
         while attempts < max_attempts:
             driver.execute_script(f"window.scrollBy(0, {scroll_step});")
             time.sleep(0.8)
-            new_top = driver.execute_script(
-                "return document.body.getBoundingClientRect().top"
-            )
+            new_top = driver.execute_script("return document.body.getBoundingClientRect().top")
             if new_top == last_top:
                 attempts += 1
             else:
@@ -235,22 +251,17 @@ def extract_html_data(source, chromedriver_path=None, window_size=(1440, 900), h
         driver.execute_script("window.scrollTo(0, 0);")
         time.sleep(0.5)
 
-        has_images = driver.execute_script(
-            "return document.images.length > 0"
-        )
-        if has_images:
+        if driver.execute_script("return document.images.length > 0"):
             time.sleep(1)
 
         body = driver.find_element(By.TAG_NAME, "body")
 
-        def process_element(element):
+        def process_element(element: WebElement) -> Optional[dict]:
             element_data = get_element_info(driver, element)
-
             if element_data["tag"] in IGNORED_TAGS:
                 return None
 
-            child_elements = element.find_elements(By.XPATH, "./*")
-            for child in child_elements:
+            for child in element.find_elements(By.XPATH, "./*"):
                 child_data = process_element(child)
                 if child_data:
                     element_data["children"].append(child_data)
@@ -267,7 +278,8 @@ def extract_html_data(source, chromedriver_path=None, window_size=(1440, 900), h
         driver.quit()
 
 
-def save_as_json(data, file_path):
+def save_as_json(data: dict, file_path: str) -> None:
+    """Serialize data to a JSON file."""
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    print(f"Data saved to {file_path}")
+    logger.info("Data saved to %s", file_path)

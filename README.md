@@ -172,7 +172,7 @@ For screenshot input, the pipeline first converts the image to HTML using **Clau
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/screenshot-to-figma.git
+git clone <repository-url>
 cd screenshot-to-figma
 
 # 2. Set up the Python backend

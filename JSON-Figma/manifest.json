@@ -4,7 +4,7 @@
   "api": "1.0.0",
   "main": "dist/code.js",
   "capabilities": [],
-  "enableProposedApi": false,
+  "enableProposedAPI": false,
   "documentAccess": "dynamic-page",
   "editorType": [
     "figma"
@@ -15,7 +15,7 @@
       "https://placehold.co",
       "https://via.placeholder.com",
       "https://images.unsplash.com",
-      "*"
+      "https://*.githubusercontent.com"
     ]
   }
 }

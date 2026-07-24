@@ -1,7 +1,10 @@
 import base64
 import os
+import logging
+
 from anthropic import Anthropic
 
+logger = logging.getLogger(__name__)
 
 GENERATION_SYSTEM_PROMPT = """
 You have perfect vision and pay great attention to detail which makes you an expert at building single page apps using Tailwind, HTML and JS.
@@ -24,15 +27,17 @@ Return ONLY the full code within <html></html> tags.
 """
 
 
-def image_to_base64(image_path):
+def image_to_base64(image_path: str) -> str:
+    """Read an image file and return its base64-encoded string."""
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Image file {image_path} not found")
 
-    with open(image_path, 'rb') as f:
-        return base64.b64encode(f.read()).decode('utf-8')
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
 
-def generate_html_from_screenshot(api_key, base64_image):
+def generate_html_from_screenshot(api_key: str, base64_image: str) -> str:
+    """Use Claude AI to generate HTML that visually matches the provided screenshot."""
     client = Anthropic(api_key=api_key)
 
     message = client.messages.create(
@@ -48,21 +53,20 @@ def generate_html_from_screenshot(api_key, base64_image):
                         "source": {
                             "type": "base64",
                             "media_type": "image/png",
-                            "data": base64_image
-                        }
+                            "data": base64_image,
+                        },
                     },
                     {
                         "type": "text",
-                        "text": "Generate code for a web page that looks exactly like this."
-                    }
-                ]
+                        "text": "Generate code for a web page that looks exactly like this.",
+                    },
+                ],
             }
-        ]
+        ],
     )
 
     html = message.content[0].text
 
-    # Extract just the HTML content if wrapped in markdown
     if "```html" in html:
         html = html.split("```html")[1].split("```")[0].strip()
     elif "```" in html:
@@ -71,7 +75,8 @@ def generate_html_from_screenshot(api_key, base64_image):
     return html
 
 
-def save_html(html_content, output_path):
-    with open(output_path, 'w', encoding='utf-8') as f:
+def save_html(html_content: str, output_path: str) -> None:
+    """Write HTML content to a file."""
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
-    print(f"HTML saved to {output_path}")
+    logger.info("HTML saved to %s", output_path)
