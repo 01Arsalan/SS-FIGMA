@@ -1,8 +1,6 @@
 # Node
+node_modules/
 *.log
-*.log.*
-node_modules
 
-out/
-dist/
-code.js
+# Build artifacts (keep dist/code.js committed for plugin consumers)
+# dist/ is committed so Figma can load the plugin directly

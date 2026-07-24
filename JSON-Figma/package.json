@@ -1,11 +1,11 @@
 {
-  "name": "TEST",
-  "version": "1.0.0",
-  "description": "Your Figma Plugin",
+  "name": "ss-to-figma-importer",
+  "version": "2.0.0",
+  "description": "Import extracted web page JSON into Figma",
   "main": "dist/code.js",
   "scripts": {
-    "build": "esbuild src/code.ts --bundle --platform=node --outfile=dist/code.js",
-    "dev": "esbuild src/code.ts --bundle --platform=node --outfile=dist/code.js --watch",
+    "build": "esbuild src/code.ts --bundle --platform=browser --target=es6 --outfile=dist/code.js --external:figma",
+    "dev": "esbuild src/code.ts --bundle --platform=browser --target=es6 --outfile=dist/code.js --external:figma --watch",
     "lint": "eslint --ext .ts,.tsx --ignore-pattern node_modules .",
     "lint:fix": "eslint --ext .ts,.tsx --ignore-pattern node_modules --fix .",
     "watch": "npm run build -- --watch"

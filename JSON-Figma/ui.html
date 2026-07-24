@@ -1,31 +1,435 @@
-<h3>Import JSON to Figma</h3>
-<input type="file" id="jsonFile" accept=".json">
-<button id="importBtn">Import</button>
-<p id="status"></p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON → Figma Importer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', -apple-system, sans-serif;
+    }
+    body {
+      background: #1a1a24;
+      color: #e2e2e8;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 11px;
+      color: #6b7280;
+      margin-bottom: 20px;
+    }
+    .drop-zone {
+      border: 2px dashed rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(255,255,255,0.02);
+    }
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: #7c3aed;
+      background: rgba(124,58,237,0.05);
+    }
+    .drop-zone.has-file {
+      border-color: #10b981;
+      background: rgba(16,185,129,0.05);
+    }
+    .drop-zone-icon {
+      font-size: 32px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .drop-zone-text {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    .drop-zone-hint {
+      font-size: 10px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .file-info {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: rgba(16,185,129,0.08);
+      border-radius: 8px;
+      font-size: 11px;
+      color: #6ee7b7;
+    }
+    .file-info.visible {
+      display: flex;
+    }
+    .file-info i {
+      font-size: 14px;
+    }
+    .file-info .file-size {
+      color: #6b7280;
+      margin-left: auto;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: #fff;
+      margin-top: 16px;
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: #9ca3af;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-top: 8px;
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255,255,255,0.1);
+      color: #e2e2e8;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .status.visible {
+      display: flex;
+    }
+    .status.info {
+      background: rgba(59,130,246,0.1);
+      color: #93c5fd;
+      border: 1px solid rgba(59,130,246,0.15);
+    }
+    .status.success {
+      background: rgba(16,185,129,0.1);
+      color: #6ee7b7;
+      border: 1px solid rgba(16,185,129,0.15);
+    }
+    .status.error {
+      background: rgba(239,68,68,0.1);
+      color: #fca5a5;
+      border: 1px solid rgba(239,68,68,0.15);
+    }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: #7c3aed;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .shortcut-hint {
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      font-size: 10px;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.6;
+    }
+    kbd {
+      background: rgba(255,255,255,0.06);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 16px;
+      display: none;
+    }
+    .progress-bar.visible {
+      display: block;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #7c3aed, #a78bfa);
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 16px 0;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      SS → Figma
+    </h1>
+    <p class="subtitle">Import extracted JSON into your Figma canvas</p>
 
-<script>
-    document.getElementById('importBtn').addEventListener('click', () => {
-        const fileInput = document.getElementById('jsonFile');
-        const statusText = document.getElementById('status');
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-zone-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/>
+          <line x1="9" y1="15" x2="12" y2="12"/>
+          <line x1="15" y1="15" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <p class="drop-zone-text">Drop JSON file here or click to browse</p>
+      <p class="drop-zone-hint">Supports .json files exported from SS → Figma converter</p>
+    </div>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
 
-        if (fileInput.files.length === 0) {
-            statusText.textContent = "Please select a JSON file.";
-            return;
-        }
+    <div class="file-info" id="fileInfo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <span id="fileName">file.json</span>
+      <span class="file-size" id="fileSize">0 KB</span>
+    </div>
 
-        const file = fileInput.files[0];
-        const reader = new FileReader();
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
 
-        reader.onload = function(event) {
-            try {
-                const jsonData = JSON.parse(event.target.result);
-                parent.postMessage({ pluginMessage: { type: "import-json", data: jsonData } }, '*');
-                statusText.textContent = "JSON sent to Figma!";
-            } catch (error) {
-                statusText.textContent = "Invalid JSON format.";
-            }
-        };
+    <div class="status" id="status"></div>
 
-        reader.readAsText(file);
+    <button class="btn btn-primary" id="importBtn" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Import to Figma
+    </button>
+
+    <div class="divider"></div>
+
+    <p class="section-title">Quick Actions</p>
+    <button class="btn btn-secondary" id="pasteBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8" y="2" width="8" height="4" rx="1"/>
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+      </svg>
+      Paste JSON from Clipboard
+    </button>
+
+    <div class="shortcut-hint">
+      Tip: You can also <kbd>Cmd+V</kbd> / <kbd>Ctrl+V</kbd> to paste JSON directly
+    </div>
+  </div>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const importBtn = document.getElementById('importBtn');
+    const status = document.getElementById('status');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const pasteBtn = document.getElementById('pasteBtn');
+
+    let currentData = null;
+
+    function setStatus(message, type = 'info') {
+      status.className = `status visible ${type}`;
+      if (type === 'info') {
+        status.innerHTML = `<div class="spinner"></div> ${message}`;
+      } else {
+        const icon = type === 'success'
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+        status.innerHTML = `${icon} ${message}`;
+      }
+    }
+
+    function clearStatus() {
+      status.className = 'status';
+      status.innerHTML = '';
+    }
+
+    function setProgress(pct) {
+      progressBar.classList.add('visible');
+      progressFill.style.width = `${pct}%`;
+    }
+
+    function hideProgress() {
+      progressBar.classList.remove('visible');
+      progressFill.style.width = '0%';
+    }
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
     });
-</script>
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        handleFile(fileInput.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) handleFile(fileInput.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file.name.endsWith('.json')) {
+        setStatus('Please select a valid JSON file.', 'error');
+        return;
+      }
+
+      fileName.textContent = file.name;
+      fileSize.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+      fileInfo.classList.add('visible');
+      dropZone.classList.add('has-file');
+      clearStatus();
+      hideProgress();
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          currentData = JSON.parse(e.target.result);
+          importBtn.disabled = false;
+          setStatus(`Ready to import ${currentData.length || 1} elements`, 'success');
+        } catch {
+          currentData = null;
+          importBtn.disabled = true;
+          setStatus('Invalid JSON format. Please check the file.', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    importBtn.addEventListener('click', () => {
+      if (!currentData) return;
+
+      setStatus('Importing to Figma...', 'info');
+      setProgress(30);
+      importBtn.disabled = true;
+
+      parent.postMessage({
+        pluginMessage: { type: 'import-json', data: currentData }
+      }, '*');
+    });
+
+    pasteBtn.addEventListener('click', () => {
+      navigator.clipboard.readText().then(text => {
+        try {
+          currentData = JSON.parse(text);
+          importBtn.disabled = false;
+          dropZone.classList.add('has-file');
+          fileInfo.classList.add('visible');
+          fileName.textContent = 'clipboard.json';
+          fileSize.textContent = `${(text.length / 1024).toFixed(1)} KB`;
+          clearStatus();
+          hideProgress();
+          setStatus(`Ready to import ${currentData.length || 1} elements`, 'success');
+        } catch {
+          setStatus('Clipboard does not contain valid JSON.', 'error');
+        }
+      }).catch(() => {
+        setStatus('Unable to read clipboard. Paste manually using Cmd+V.', 'error');
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        setTimeout(pasteBtn.click, 100);
+      }
+    });
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+
+      if (msg.type === 'import-success') {
+        setProgress(100);
+        setTimeout(() => {
+          setStatus('Import complete!', 'success');
+          hideProgress();
+        }, 500);
+      } else if (msg.type === 'import-error') {
+        setStatus(`Error: ${msg.error}`, 'error');
+        hideProgress();
+        importBtn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
